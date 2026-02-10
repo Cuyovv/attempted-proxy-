@@ -153,35 +153,10 @@
       return `https://duckduckgo.com/?q=${encoded}`;
     }
 
-
-    function getHostname(target) {
-      try {
-        return new URL(target).hostname.toLowerCase();
-      } catch {
-        return '';
-      }
-    }
-
-    function isKnownIframeBlocked(target) {
-      const host = getHostname(target);
-      const blockedHosts = [
-        'youtube.com',
-        'www.youtube.com',
-        'm.youtube.com',
-        'youtu.be',
-        'instagram.com',
-        'www.instagram.com',
-        'tiktok.com',
-        'www.tiktok.com'
-      ];
-      return blockedHosts.includes(host);
-    }
-
-    function renderStatus(target, extraHint = '') {
+    function renderStatus(target) {
       statusEl.innerHTML = `
         <div><strong>Target:</strong> <a href="${target}" target="_blank" rel="noopener noreferrer">${target}</a></div>
         <div class="hint"><span class="ok">Tip:</span> If the embedded view is blank, use <strong>Open in New Tab</strong>. Many websites block iframes for security.</div>
-        ${extraHint ? `<div class="hint warn">${extraHint}</div>` : ''}
       `;
     }
 
@@ -191,13 +166,6 @@
         statusEl.innerHTML = '<span class="bad">Please enter a URL or search term.</span>';
         return;
       }
-      if (!openInTab && isKnownIframeBlocked(target)) {
-        renderStatus(target, 'This site is known to block iframe embeds, so it was opened in a new tab automatically.');
-        window.open(target, '_blank', 'noopener,noreferrer');
-        viewerEl.removeAttribute('src');
-        return;
-      }
-
       renderStatus(target);
       if (openInTab) {
         window.open(target, '_blank', 'noopener,noreferrer');
