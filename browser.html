@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Custom Mini Browser</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #131a2e;
+      --text: #ecf0ff;
+      --muted: #9ca7d8;
+      --accent: #6ea8ff;
+      --accent-2: #8b5cf6;
+      --danger: #ff6b6b;
+      --ok: #00c27d;
+      --border: #283156;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(circle at top, #1b2550, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px;
+    }
+    .toolbar, .status {
+      background: color-mix(in oklab, var(--panel) 92%, black 8%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    }
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    input[type="text"], select {
+      background: #0d142a;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      min-height: 40px;
+    }
+    #query { flex: 1; min-width: 220px; }
+    button {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--accent), #4477d8);
+      color: white;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary {
+      background: linear-gradient(180deg, #363f67, #232b4a);
+    }
+    button.alt {
+      background: linear-gradient(180deg, var(--accent-2), #6545cb);
+    }
+    #viewer {
+      width: 100%;
+      flex: 1;
+      min-height: 70vh;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: white;
+    }
+    .hint { color: var(--muted); font-size: .9rem; }
+    .pill {
+      font-size: .82rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #0d142a;
+    }
+    .ok { color: var(--ok); }
+    .warn { color: #fbbf24; }
+    .bad { color: var(--danger); }
+    a { color: #9fc2ff; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div class="row">
+      <input id="query" type="text" placeholder="Type a URL (example.com) or search text..." autocomplete="off" />
+      <select id="mode" title="Choose mode">
+        <option value="direct">Direct URL/Search</option>
+        <option value="duck">DuckDuckGo Search</option>
+        <option value="bing">Bing Search</option>
+        <option value="jina">Text Proxy (r.jina.ai/http://...)</option>
+        <option value="archive">Archive.org Snapshot</option>
+      </select>
+      <button id="go">Go</button>
+      <button id="newTab" class="secondary">Open in New Tab</button>
+      <button id="download" class="alt">Download .html</button>
+    </div>
+    <div class="row hint">
+      <span class="pill">Single-file browser page</span>
+      <span class="pill">Works offline for UI</span>
+      <span class="pill">Some sites block iframe embedding</span>
+    </div>
+  </div>
+
+  <div class="status" id="status">
+    Ready. Enter a query and click <strong>Go</strong>.
+  </div>
+
+  <iframe id="viewer" title="browser-viewer" sandbox="allow-forms allow-popups allow-scripts allow-same-origin"></iframe>
+
+  <script>
+    const queryEl = document.getElementById('query');
+    const modeEl = document.getElementById('mode');
+    const viewerEl = document.getElementById('viewer');
+    const statusEl = document.getElementById('status');
+
+    function looksLikeUrl(value) {
+      return /^([a-z]+:\/\/|localhost|\d+\.\d+\.\d+\.\d+|[\w.-]+\.[a-z]{2,})([:/].*)?$/i.test(value.trim());
+    }
+
+    function normalizeUrl(value) {
+      const trimmed = value.trim();
+      if (/^[a-z]+:\/\//i.test(trimmed)) return trimmed;
+      return 'https://' + trimmed;
+    }
+
+    function buildTarget(query, mode) {
+      const q = query.trim();
+      if (!q) return '';
+      const encoded = encodeURIComponent(q);
+
+      if (mode === 'duck') return `https://duckduckgo.com/?q=${encoded}`;
+      if (mode === 'bing') return `https://www.bing.com/search?q=${encoded}`;
+      if (mode === 'archive') return `https://web.archive.org/web/*/${encodeURIComponent(normalizeUrl(q))}`;
+      if (mode === 'jina') return `https://r.jina.ai/http://${q.replace(/^https?:\/\//i, '')}`;
+
+      // direct mode: URL if possible, otherwise search
+      if (looksLikeUrl(q)) return normalizeUrl(q);
+      return `https://duckduckgo.com/?q=${encoded}`;
+    }
+
+    function renderStatus(target) {
+      statusEl.innerHTML = `
+        <div><strong>Target:</strong> <a href="${target}" target="_blank" rel="noopener noreferrer">${target}</a></div>
+        <div class="hint"><span class="ok">Tip:</span> If the embedded view is blank, use <strong>Open in New Tab</strong>. Many websites block iframes for security.</div>
+      `;
+    }
+
+    function go(openInTab = false) {
+      const target = buildTarget(queryEl.value, modeEl.value);
+      if (!target) {
+        statusEl.innerHTML = '<span class="bad">Please enter a URL or search term.</span>';
+        return;
+      }
+      renderStatus(target);
+      if (openInTab) {
+        window.open(target, '_blank', 'noopener,noreferrer');
+      } else {
+        viewerEl.src = target;
+      }
+    }
+
+    function downloadHtml() {
+      const html = '<!doctype html>\n' + document.documentElement.outerHTML;
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'custom-browser.html';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      statusEl.innerHTML = '<span class="ok">Downloaded <strong>custom-browser.html</strong>.</span>';
+    }
+
+    document.getElementById('go').addEventListener('click', () => go(false));
+    document.getElementById('newTab').addEventListener('click', () => go(true));
+    document.getElementById('download').addEventListener('click', downloadHtml);
+    queryEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') go(false);
+    });
+  </script>
+</body>
+</html>
