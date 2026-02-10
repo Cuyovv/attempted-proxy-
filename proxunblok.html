@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Custom Mini Browser</title>
+  <title>ProxUnblok - Custom Mini Browser</title>
   <style>
     :root {
       --bg: #0b1020;
@@ -110,6 +110,7 @@
     </div>
     <div class="row hint">
       <span class="pill">Single-file browser page</span>
+      <span class="pill">by yogi</span>
       <span class="pill">Works offline for UI</span>
       <span class="pill">Some sites block iframe embedding</span>
     </div>
@@ -180,12 +181,12 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'custom-browser.html';
+      a.download = 'proxunblok.html';
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      statusEl.innerHTML = '<span class="ok">Downloaded <strong>custom-browser.html</strong>.</span>';
+      statusEl.innerHTML = '<span class="ok">Downloaded <strong>proxunblok.html</strong>.</span>';
     }
 
     document.getElementById('go').addEventListener('click', () => go(false));
